@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memorama Pro</title>
+
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+    background: linear-gradient(135deg, #74ebd5, #acb6e5);
+    padding: 20px;
+}
+
+input, button {
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    margin: 8px;
+    cursor: pointer;
+}
+
+button {
+    background: #185a9d;
+    color: white;
+}
+
+/* GRID */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(6, 90px);
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* TARJETAS */
+.card {
+    width: 90px;
+    height: 90px;
+    perspective: 1000px;
+}
+
+.inner {
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+    position: relative;
+}
+
+.card.revealed .inner {
+    transform: rotateY(180deg);
+}
+
+.front, .back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.front {
+    background: #185a9d;
+    color: white;
+    font-size: 25px;
+}
+
+.back {
+    transform: rotateY(180deg);
+    background: white;
+}
+
+.back img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+/* TABLA */
+table {
+    margin: 20px auto;
+    border-collapse: collapse;
+    background: white;
+}
+
+th, td {
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+}
+
+th {
+    background: #185a9d;
+    color: white;
+}
+
+/* TOAST */
+#toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    opacity: 0;
+    transition: 0.3s;
+}
+
+#toast.show {
+    opacity: 1;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧠 Memorama</h1>
+
+<input type="text" id="playerName" placeholder="Ingresa tu nombre">
+<button onclick="restartGame()">🔄 Reiniciar</button>
+
+<h3>Puntos: <span id="score">0</span></h3>
+
+<!-- TABLA -->
+<h2>🏆 Registros</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Jugador</th>
+            <th>Puntuación</th>
+        </tr>
+    </thead>
+    <tbody id="tablaScores"></tbody>
+</table>
+
+<div class="grid" id="grid"></div>
+<div id="toast"></div>
+
+<script>
+
+/* CARTAS CON IMÁGENES */
+const cardsArray = [
+    {img:"pulmones.jpeg", msg:"El consumo constante de tabaco durante meses o años daña progresivamente los pulmones. Al inicio puede causar tos leve, pero con el tiempo puede derivar en enfermedades graves como bronquitis crónica, EPOC o incluso cáncer pulmonar, reduciendo la capacidad de respirar correctamente."},
+    {img:"pulmones.jpeg", msg:"El consumo constante de tabaco durante meses o años daña progresivamente los pulmones. Al inicio puede causar tos leve, pero con el tiempo puede derivar en enfermedades graves como bronquitis crónica, EPOC o incluso cáncer pulmonar, reduciendo la capacidad de respirar correctamente."},
+
+    {img:"corazon.jpeg", msg:"Fumar durante largos periodos aumenta la presión arterial y endurece las arterias. Con el paso del tiempo, esto eleva considerablemente el riesgo de sufrir infartos, accidentes cerebrovasculares y otras enfermedades cardiovasculares que pueden ser mortales."},
+    {img:"corazon.jpeg", msg:"Fumar durante largos periodos aumenta la presión arterial y endurece las arterias. Con el paso del tiempo, esto eleva considerablemente el riesgo de sufrir infartos, accidentes cerebrovasculares y otras enfermedades cardiovasculares que pueden ser mortales."},
+
+    {img:"vapeo.jpeg", msg:"Aunque muchas personas creen que el vapeo es inofensivo, su uso frecuente expone al cuerpo a sustancias químicas dañinas. Con el tiempo, puede provocar irritación pulmonar, problemas respiratorios y posibles daños al sistema cardiovascular."},
+    {img:"vapeo.jpeg", msg:"Aunque muchas personas creen que el vapeo es inofensivo, su uso frecuente expone al cuerpo a sustancias químicas dañinas. Con el tiempo, puede provocar irritación pulmonar, problemas respiratorios y posibles daños al sistema cardiovascular."},
+
+    {img:"cancer.jpeg", msg:"El consumo de tabaco a lo largo de los años está directamente relacionado con el desarrollo de distintos tipos de cáncer, como el de pulmón, boca, garganta y esófago. Cuanto más tiempo se consume, mayor es el riesgo de desarrollar estas enfermedades graves."},
+    {img:"cancer.jpeg", msg:"El consumo de tabaco a lo largo de los años está directamente relacionado con el desarrollo de distintos tipos de cáncer, como el de pulmón, boca, garganta y esófago. Cuanto más tiempo se consume, mayor es el riesgo de desarrollar estas enfermedades graves."},
+
+    {img:"cerebro.jpeg", msg:"En adolescentes y jóvenes, el consumo de nicotina afecta el desarrollo del cerebro. Con el tiempo puede alterar la memoria, la concentración y el control de impulsos, afectando el rendimiento escolar y la toma de decisiones."},
+    {img:"cerebro.jpeg", msg:"En adolescentes y jóvenes, el consumo de nicotina afecta el desarrollo del cerebro. Con el tiempo puede alterar la memoria, la concentración y el control de impulsos, afectando el rendimiento escolar y la toma de decisiones."},
+
+    {img:"dientes.jpeg", msg:"Fumar de forma continua provoca daños visibles en los dientes y encías. Con el paso del tiempo aparecen manchas, mal aliento persistente y enfermedades periodontales que pueden llevar a la pérdida de piezas dentales."},
+    {img:"dientes.jpeg", msg:"Fumar de forma continua provoca daños visibles en los dientes y encías. Con el paso del tiempo aparecen manchas, mal aliento persistente y enfermedades periodontales que pueden llevar a la pérdida de piezas dentales."},
+
+    {img:"piel.jpeg", msg:"El consumo prolongado de tabaco reduce el oxígeno que llega a la piel. Esto provoca envejecimiento prematuro, arrugas más profundas y una apariencia apagada que se vuelve más evidente con los años."},
+    {img:"piel.jpeg", msg:"El consumo prolongado de tabaco reduce el oxígeno que llega a la piel. Esto provoca envejecimiento prematuro, arrugas más profundas y una apariencia apagada que se vuelve más evidente con los años."},
+
+    {img:"tos.jpeg", msg:"Con el uso constante de cigarro o vapeador, las vías respiratorias se irritan. Esto provoca tos frecuente, dificultad para respirar y una menor capacidad pulmonar, especialmente durante actividades físicas."},
+    {img:"tos.jpeg", msg:"Con el uso constante de cigarro o vapeador, las vías respiratorias se irritan. Esto provoca tos frecuente, dificultad para respirar y una menor capacidad pulmonar, especialmente durante actividades físicas."},
+
+    {img:"adiccion.jpeg", msg:"La nicotina genera dependencia en poco tiempo. Con el consumo continuo, el cuerpo se acostumbra a la sustancia, haciendo que sea cada vez más difícil dejar el hábito, incluso cuando ya se conocen sus consecuencias."},
+    {img:"adiccion.jpeg", msg:"La nicotina genera dependencia en poco tiempo. Con el consumo continuo, el cuerpo se acostumbra a la sustancia, haciendo que sea cada vez más difícil dejar el hábito, incluso cuando ya se conocen sus consecuencias."}
+];
+
+let grid = document.getElementById("grid");
+let toast = document.getElementById("toast");
+let tabla = document.getElementById("tablaScores");
+
+let firstCard = null;
+let secondCard = null;
+let score = 0;
+
+/* CARGAR REGISTROS */
+function loadScores(){
+    tabla.innerHTML = "";
+    let scores = JSON.parse(localStorage.getItem("scores")) || [];
+
+    scores.forEach(s=>{
+        let row = `<tr><td>${s.name}</td><td>${s.score}</td></tr>`;
+        tabla.innerHTML += row;
+    });
+}
+
+/* GUARDAR REGISTRO */
+function saveScore(){
+    let name = document.getElementById("playerName").value || "Jugador";
+
+    let scores = JSON.parse(localStorage.getItem("scores")) || [];
+    scores.push({name:name, score:score});
+
+    localStorage.setItem("scores", JSON.stringify(scores));
+}
+
+/* TOAST */
+function showToast(msg){
+    toast.innerText = msg;
+    toast.classList.add("show");
+    setTimeout(()=>toast.classList.remove("show"),3000);
+}
+
+function updateScore(){
+    score++;
+    document.getElementById("score").textContent = score;
+}
+
+/* CREAR TABLERO */
+function createBoard(){
+    grid.innerHTML = "";
+    let shuffled = [...cardsArray].sort(()=>0.5 - Math.random());
+
+    shuffled.forEach(item=>{
+        let card = document.createElement("div");
+        card.classList.add("card");
+
+        card.dataset.img = item.img;
+        card.dataset.msg = item.msg;
+
+        card.innerHTML = `
+            <div class="inner">
+                <div class="front">❓</div>
+                <div class="back"><img src="${item.img}"></div>
+            </div>
+        `;
+
+        card.onclick = ()=>{
+            if(card.classList.contains("revealed") || secondCard) return;
+
+            card.classList.add("revealed");
+
+            if(!firstCard){
+                firstCard = card;
+            } else {
+                secondCard = card;
+
+                if(firstCard.dataset.img === secondCard.dataset.img){
+                    showToast(firstCard.dataset.msg);
+                    updateScore();
+                    firstCard = null;
+                    secondCard = null;
+                } else {
+                    setTimeout(()=>{
+                        firstCard.classList.remove("revealed");
+                        secondCard.classList.remove("revealed");
+                        firstCard = null;
+                        secondCard = null;
+                    },800);
+                }
+            }
+        };
+
+        grid.appendChild(card);
+    });
+}
+
+/* REINICIAR */
+function restartGame(){
+    saveScore(); // guarda antes de reiniciar
+    score = 0;
+    document.getElementById("score").textContent = 0;
+    firstCard = null;
+    secondCard = null;
+    createBoard();
+    loadScores();
+}
+
+/* INICIO */
+createBoard();
+loadScores();
+
+</script>
+
+</body>
+</html>
